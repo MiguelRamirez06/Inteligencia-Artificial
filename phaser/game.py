@@ -10,6 +10,7 @@ from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from tensorflow.keras.models import Sequential, save_model, load_model
 from tensorflow.keras.layers import Dense
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import plot_tree
 import matplotlib.pyplot as plt
 
@@ -25,6 +26,10 @@ directory_to_save_neural_network = 'C:/Users/migue/PycharmProjects/InteligenciaA
 neural_network_trained = None
 mode_neural_network = False
 prediction_counter = 0
+
+# Variables para el modelo KNN
+knn_model = None
+directory_to_save_knn = 'C:/Users/migue/Downloads/phaser/phaser/knn_model'
 
 last_csv_path_saved_for_horizontal_ball = ''
 last_csv_path_saved_for_vertical_ball = ''
@@ -248,6 +253,61 @@ def generate_desition_treee():
     model_path = os.path.join(directory_to_save_desition_tree, 'decision_tree_model.joblib')
     joblib.dump(clf, model_path)
     print(f"Modelo de árbol de decisión guardado en: {model_path}")
+
+
+### ---------------- KNN ----------------- ###
+
+def cargar_modelo_knn():
+    global knn_model
+    try:
+        model_path = os.path.join(directory_to_save_knn, 'knn_model.joblib')
+        knn_model = joblib.load(model_path)
+        print("Modelo KNN cargado exitosamente.")
+    except:
+        print("No se pudo cargar el modelo KNN.")
+
+def predecir_salto_knn(velocidad_bala, desplazamiento_bala):
+    if knn_model is None:
+        print("El modelo KNN no está cargado.")
+        return False
+
+    # Preparar los datos de entrada
+    input_data = np.array([[velocidad_bala, desplazamiento_bala]])
+
+    # Realizar la predicción
+    prediction = knn_model.predict(input_data)
+
+    # Retornar True si la predicción es 1 (salto), False en caso contrario
+    return prediction[0] == 1
+
+def generate_knn_model():
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_knn
+
+    # Cargar el dataset
+    df = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+
+    # Separar características (X) y etiquetas (y)
+    X = df[['Velocidad Bala', 'Desplazamiento Bala']].values
+    y = df['Estatus Salto'].values
+
+    # Dividir los datos en conjuntos de entrenamiento y prueba
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Crear el modelo KNN
+    knn = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
+
+    # Entrenar el modelo
+    knn.fit(X_train, y_train)
+
+    # Evaluar el modelo
+    score = knn.score(X_test, y_test)
+    print(f"Precisión del modelo KNN: {score:.2f}")
+
+    # Guardar el modelo
+    os.makedirs(directory_to_save_knn, exist_ok=True)
+    model_path = os.path.join(directory_to_save_knn, 'knn_model.joblib')
+    joblib.dump(knn, model_path)
+    print(f"Modelo KNN guardado en: {model_path}")
 
 
 # Función para disparar la bala
@@ -498,6 +558,7 @@ def print_menu_options():
 def train_models():
     generate_neural_network()
     generate_desition_treee()
+    generate_knn_model()
 
 
 # Función para mostrar el menú y seleccionar el modo de juego
@@ -517,7 +578,6 @@ def mostrar_menu():
                 exit()
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_m:
-                    print("Press m")
                     datos_modelo = []
                     modo_auto = False
                     modo_manual = True
@@ -528,15 +588,12 @@ def mostrar_menu():
                     # correr = True
                     pausa = False
                 elif evento.key == pygame.K_s:
-                    print("Press s")
                     save_data_set()
                     menu_activo = True
                 elif evento.key == pygame.K_t:
-                    print("Press t")
                     train_models()
                     menu_activo = True
                 elif evento.key == pygame.K_n:
-                    print("Press n")
                     modo_auto = True
                     modo_decision_tree = False
                     mode_neural_network = True
@@ -546,7 +603,6 @@ def mostrar_menu():
                     pausa = False
                     cargar_modelo_neural_network()
                 elif evento.key == pygame.K_d:
-                    print("Press d")
                     modo_auto = True
                     modo_decision_tree = True
                     mode_neural_network = False
@@ -555,6 +611,15 @@ def mostrar_menu():
                     menu_activo = False
                     pausa = False
                     cargar_modelo_decision_tree()
+                elif evento.key == pygame.K_k:
+                    modo_auto = True
+                    modo_decision_tree = False
+                    mode_neural_network = False
+                    modo_manual = False
+                    modo_2_balas = False
+                    menu_activo = False
+                    pausa = False
+                    cargar_modelo_knn()
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
                     pygame.quit()
@@ -641,6 +706,16 @@ def run_any_mode(correr):
                         print('saltando... prediction true...')
                         salto = True
                         en_suelo = False
+                if salto:
+                    manejar_salto()
+
+            # Modo automático: KNN
+            elif modo_auto and knn_model is not None:
+                desplazamiento_bala = bala.x - jugador.x
+                if predecir_salto_knn(velocidad_bala, desplazamiento_bala) and en_suelo:
+                    print('saltando... prediction true...')
+                    salto = True
+                    en_suelo = False
                 if salto:
                     manejar_salto()
 
