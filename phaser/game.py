@@ -4,6 +4,10 @@ import csv
 from datetime import datetime
 import os
 import pandas as pd
+import numpy as np
+from tensorflow.keras.models import Sequential, save_model, load_model
+from tensorflow.keras.layers import Dense
+from sklearn.model_selection import train_test_split
 
 directory_to_save_datasets = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/datasets'
 directory_to_save_desition_tree = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/desition_tree'
@@ -13,7 +17,6 @@ modo_decision_tree = False
 # Variables para el modelo de regresión lineal
 linear_regression_model = None
 directory_to_save_linear_regression = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/linear_regression'
-
 directory_to_save_neural_network = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/neural_network'
 neural_network_trained = None
 mode_neural_network = False
@@ -104,6 +107,74 @@ fondo_x1 = 0
 fondo_x2 = w
 
 
+### ---------------- NEURAL NETWORK ---------------- ###
+
+def cargar_modelo_neural_network():
+    global neural_network_trained
+    try:
+        model_path = os.path.join(directory_to_save_neural_network, 'neural_network_model.keras')
+        neural_network_trained = load_model(model_path)
+        print("Modelo de red neuronal cargado exitosamente.")
+    except:
+        print("No se pudo cargar el modelo de red neuronal")
+
+
+def predecir_salto_neural_network(velocidad_bala, desplazamiento_bala):
+    if neural_network_trained is None:
+        print("El modelo de red neuronal no está cargado.")
+        return False
+
+    # Preparar los datos de entrada
+    input_data = np.array([[velocidad_bala, desplazamiento_bala]])
+
+    # Realizar la predicción
+    prediction = neural_network_trained.predict(input_data, verbose=0)
+    # prediction = neural_network_trained.predict(input_data)
+
+    # La predicción será un número entre 0 y 1
+    # Podemos establecer un umbral, por ejemplo, 0.5
+    return prediction[0][0] > 0.5
+
+
+def generate_neural_network():
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_neural_network
+
+    # Cargar el dataset
+    df = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+
+    # Separar características (X) y etiquetas (y)
+    X = df[['Velocidad Bala', 'Desplazamiento Bala']].values
+    y = df['Estatus Salto'].values
+
+    # Dividir los datos en conjuntos de entrenamiento y prueba
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Crear el modelo de red neuronal
+    model = Sequential([
+        Dense(8, input_dim=2, activation='relu'),
+        Dense(4, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+
+    print("Before to compile...")
+    # Compilar el modelo
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    # Entrenar el modelo
+    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
+
+    print("After fit...")
+
+    # Evaluar el modelo
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    print(f"\nPrecisión en el conjunto de prueba: {accuracy:.2f}")
+
+    print("Before to save...")
+
+    # Guardar el modelo
+    save_model(model, os.path.join(directory_to_save_neural_network, 'neural_network_model.keras'))
+
+    print("Modelo de red neuronal generado y guardado exitosamente.")
 
 
 # Función para disparar la bala
@@ -248,18 +319,95 @@ def pausa_juego():
     else:
         print("Juego reanudado.")
 
+# Función para guardar el dataset en un archivo CSV
+def save_data_set():
+    global last_csv_path_saved_for_horizontal_ball, last_csv_path_saved_for_vertical_ball, last_csv_path_saved_for_diagonal_ball
+    global datos_modelo, datos_modelo_vertical_ball, datos_modelo_diagonal_ball
+
+    if modo_manual:
+        # Generar un nombre de archivo único con la fecha y hora actual
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_horizontal_ball = f"dataset_horizontal_ball_{timestamp}.csv"
+
+        # Crear la ruta completa del archivo
+        file_path_horizontal_ball = os.path.join(directory_to_save_datasets, filename_horizontal_ball)
+
+        try:
+            # Asegurarse de que el directorio existe
+            os.makedirs(directory_to_save_datasets, exist_ok=True)
+
+            with open(file_path_horizontal_ball, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+
+                # Escribir el encabezado
+                writer.writerow(["Velocidad Bala", "Desplazamiento Bala", "Estatus Salto"])
+
+                # Escribir los datos
+
+                for dato in datos_modelo:
+                    writer.writerow(dato)
+
+            last_csv_path_saved_for_horizontal_ball = file_path_horizontal_ball
+            print(f"Dataset guardado exitosamente como '{last_csv_path_saved_for_horizontal_ball}'")
+        except Exception as e:
+            print(f"Error al guardar el dataset: {e}")
+
+    if modo_2_balas:
+        # Generar un nombre de archivo único con la fecha y hora actual
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_horizontal_ball = f"dataset_horizontal_ball_{timestamp}.csv"
+        filename_vertical_ball = f"dataset_vertical_ball_{timestamp}.csv"
+
+        # Crear la ruta completa del archivo
+        file_path_horizontal_ball = os.path.join(directory_to_save_datasets, filename_horizontal_ball)
+        file_path_vertical_ball = os.path.join(directory_to_save_datasets, filename_vertical_ball)
+
+        try:
+            # Asegurarse de que el directorio existe
+            os.makedirs(directory_to_save_datasets, exist_ok=True)
+
+            with open(file_path_horizontal_ball, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+
+                # Escribir el encabezado
+                writer.writerow(["Velocidad Bala", "Desplazamiento Bala", "Estatus Salto"])
+
+                # Escribir los datos
+                for dato in datos_modelo:
+                    writer.writerow(dato)
+
+            with open(file_path_vertical_ball, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+
+                # Escribir el encabezado
+                writer.writerow(["Velocidad Bala", "Desplazamiento Bala Y", ""])
+
+                # Escribir los datos
+                for dato in datos_modelo_vertical_ball:
+                    writer.writerow(dato)
+
+            last_csv_path_saved_for_horizontal_ball = file_path_horizontal_ball
+            last_csv_path_saved_for_vertical_ball = file_path_vertical_ball
+            print(f"Dataset guardado exitosamente como '{last_csv_path_saved_for_horizontal_ball}'")
+            print(f"Dataset guardado exitosamente como '{last_csv_path_saved_for_vertical_ball}'")
+        except Exception as e:
+            print(f"Error al guardar el dataset: {e}")
+
+
 # Función para mostrar el menú de opciones
 def print_menu_options():
     lineas = [
         "============ MENU =============",
         "",
-        "Press D - Auto Mode Decision Tree",
-        "Press N - Auto Mode Neural Network",
-        "Press R - Auto Mode Linear Regression",
-        "Press K - Auto Mode KNN",
         "Press M - Manual Mode",
+        "Press N - Auto Mode Neural Network",
+        "Press D - Auto Mode Decision Tree",
+        # "Press R - Auto Mode Linear Regression",
+        "Press K - Auto Mode KNN",
+        "Press T - Training Models",
         "Press S - Save DataSet",
         "Press 2 - Double bullets Mode",
+        "",
         "Press Q - Exit",
     ]
 
@@ -272,6 +420,11 @@ def print_menu_options():
         pantalla.blit(texto, (x, y))
         y += 40
     pygame.display.flip()
+
+# Función para generar el modelo de árbol de decisión
+def train_models():
+    generate_neural_network()
+
 
 # Función para mostrar el menú y seleccionar el modo de juego
 def mostrar_menu():
@@ -300,6 +453,24 @@ def mostrar_menu():
                     menu_activo = False
                     # correr = True
                     pausa = False
+                elif evento.key == pygame.K_s:
+                    print("Press s")
+                    save_data_set()
+                    menu_activo = True
+                elif evento.key == pygame.K_t:
+                    print("Press t")
+                    train_models()
+                    menu_activo = True
+                elif evento.key == pygame.K_n:
+                    print("Press n")
+                    modo_auto = True
+                    modo_decision_tree = False
+                    mode_neural_network = True
+                    modo_manual = False
+                    modo_2_balas = False
+                    menu_activo = False
+                    pausa = False
+                    cargar_modelo_neural_network()
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
                     pygame.quit()
@@ -365,6 +536,19 @@ def run_any_mode(correr):
                     manejar_salto()
                 # Guardar los datos si estamos en modo manual
                 guardar_datos()
+
+            # Modo automático: neural network
+            elif mode_neural_network:
+                # This module oprand has used to minimize the calls to the neural network for predictions
+                prediction_counter += 1
+                if prediction_counter % 1 == 0:
+                    if mode_neural_network and neural_network_trained is not None:
+                        desplazamiento_bala = bala.x - jugador.x
+                        if predecir_salto_neural_network(velocidad_bala, desplazamiento_bala) and en_suelo:
+                            salto = True
+                            en_suelo = False
+                    if salto:
+                        manejar_salto()
 
             # Move right or left
             keys = pygame.key.get_pressed()
