@@ -312,35 +312,52 @@ def reiniciar_juego():
     print("Datos recopilados para el modelo: ", datos_modelo)
     mostrar_menu()  # Mostrar el menú de nuevo para seleccionar modo
 
-def main():
+
+def run_any_mode(correr):
     global salto, en_suelo, bala_disparada
-
+    global modo_decision_tree, modo_manual, modo_auto
+    global bala, velocidad_bala, jugador, prediction_counter
+    pygame.display.flip()
     reloj = pygame.time.Clock()
-    mostrar_menu()  # Mostrar el menú al inicio
-    correr = True
-
     while correr:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 correr = False
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_SPACE and en_suelo and not pausa:  # Detectar la tecla espacio para saltar
+                    # print('saltando.....')
                     salto = True
                     en_suelo = False
+                    salto_altura = 15  # Restablecer la velocidad de salto al iniciar un nuevo salto
+
                 if evento.key == pygame.K_p:  # Presiona 'p' para pausar el juego
                     pausa_juego()
                 if evento.key == pygame.K_q:  # Presiona 'q' para terminar el juego
-                    print("Juego terminado. Datos recopilados:", datos_modelo)
+                    print("Juego terminado.")
                     pygame.quit()
                     exit()
 
         if not pausa:
             # Modo manual: el jugador controla el salto
             if not modo_auto:
+                print('modo manual')
                 if salto:
                     manejar_salto()
                 # Guardar los datos si estamos en modo manual
                 guardar_datos()
+
+            # Move right or left
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                jugador.x -= 5
+            if keys[pygame.K_RIGHT]:
+                jugador.x += 5
+
+            # Mantener al jugador dentro de los límites de la pantalla
+            if jugador.x < 0:
+                jugador.x = 0
+            if jugador.x > w - jugador.width:
+                jugador.x = w - jugador.width
 
             # Actualizar el juego
             if not bala_disparada:
@@ -349,7 +366,17 @@ def main():
 
         # Actualizar la pantalla
         pygame.display.flip()
-        reloj.tick(30)  # Limitar el juego a 30 FPS
+        reloj.tick(60)  # Limitar el juego a 60 FPS
+
+
+def main():
+    global salto, en_suelo, bala_disparada
+    global modo_decision_tree, modo_manual, modo_auto
+    global bala, velocidad_bala, jugador, prediction_counter
+
+    mostrar_menu()  # Mostrar el menú al inicio
+    correr = True
+    run_any_mode(correr)
 
     pygame.quit()
 
