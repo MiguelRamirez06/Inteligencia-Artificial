@@ -26,7 +26,7 @@ last_csv_path_saved_for_vertical_ball = ''
 pygame.init()
 
 # Dimensiones de la pantalla
-w, h = 800, 400
+w, h = 1000, 600
 pantalla = pygame.display.set_mode((w, h))
 pygame.display.set_caption("Juego: Disparo de Bala, Salto, Nave y Menú")
 
@@ -52,6 +52,13 @@ pausa = False
 fuente = pygame.font.SysFont('Arial', 24)
 menu_activo = True
 modo_auto = False  # Indica si el modo de juego es automático
+modo_manual = False
+modo_2_balas = False
+
+# Lista para guardar los datos de velocidad, distancia y salto (target)
+datos_modelo = []
+datos_modelo_vertical_ball = []
+datos_modelo_diagonal_ball = []
 
 # Lista para guardar los datos de velocidad, distancia y salto (target)
 datos_modelo = []
@@ -84,12 +91,20 @@ frame_speed = 10  # Cuántos frames antes de cambiar a la siguiente imagen
 frame_count = 0
 
 # Variables para la bala
-velocidad_bala = -10  # Velocidad de la bala hacia la izquierda
+velocidad_bala = -20  # Velocidad de la bala hacia la izquierda
 bala_disparada = False
+
+# Variables para la segunda bala
+bala2 = pygame.Rect(random.randint(0, w - 16), 0, 16, 16)
+velocidad_bala2 = 5  # Velocidad de la bala hacia abajo
+bala2_disparada = False
 
 # Variables para el fondo en movimiento
 fondo_x1 = 0
 fondo_x2 = w
+
+
+
 
 # Función para disparar la bala
 def disparar_bala():
