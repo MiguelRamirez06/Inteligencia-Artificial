@@ -1,5 +1,26 @@
 import pygame
 import random
+import csv
+from datetime import datetime
+import os
+import pandas as pd
+
+directory_to_save_datasets = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/datasets'
+directory_to_save_desition_tree = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/desition_tree'
+decision_tree_trained = None
+modo_decision_tree = False
+
+# Variables para el modelo de regresión lineal
+linear_regression_model = None
+directory_to_save_linear_regression = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/linear_regression'
+
+directory_to_save_neural_network = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/neural_network'
+neural_network_trained = None
+mode_neural_network = False
+prediction_counter = 0
+
+last_csv_path_saved_for_horizontal_ball = ''
+last_csv_path_saved_for_vertical_ball = ''
 
 # Inicializar Pygame
 pygame.init()
