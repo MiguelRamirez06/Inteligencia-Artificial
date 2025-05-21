@@ -5,9 +5,13 @@ from datetime import datetime
 import os
 import pandas as pd
 import numpy as np
+import joblib
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from tensorflow.keras.models import Sequential, save_model, load_model
 from tensorflow.keras.layers import Dense
 from sklearn.model_selection import train_test_split
+from sklearn.tree import plot_tree
+import matplotlib.pyplot as plt
 
 directory_to_save_datasets = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/datasets'
 directory_to_save_desition_tree = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/desition_tree'
@@ -175,6 +179,75 @@ def generate_neural_network():
     save_model(model, os.path.join(directory_to_save_neural_network, 'neural_network_model.keras'))
 
     print("Modelo de red neuronal generado y guardado exitosamente.")
+
+
+### ---------------- DESICITION TREE --------------- ###
+
+def cargar_modelo_decision_tree():
+    global decision_tree_trained
+    print(directory_to_save_desition_tree)
+    try:
+        decision_tree_trained = joblib.load(directory_to_save_desition_tree + '/decision_tree_model.joblib')
+        print("Desition tree cargado exitosamente.")
+    except:
+        print("No se pudo cargar el modelo de árbol de decisión")
+
+
+def predecir_salto_desition_tree(velocidad_bala, desplazamiento_bala):
+    global decision_tree_trained
+    if decision_tree_trained is not None:
+        prediccion = decision_tree_trained.predict([[velocidad_bala, desplazamiento_bala]])
+        print("PREDICción de salto: " + str(prediccion[0]))
+        if prediccion[0] == '1':
+            print("RETURN DESITION TREE WITH TRUE")
+            return True
+    return False
+
+
+def generate_desition_treee():
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_desition_tree
+
+    if last_csv_path_saved_for_horizontal_ball == '':
+        print('Primero debe de guardar el data set')
+        return
+
+    # Asegurarse de que el directorio existe
+    os.makedirs(directory_to_save_desition_tree, exist_ok=True)
+
+    # Leer el CSV sin encabezados
+    dataset = pd.read_csv(last_csv_path_saved_for_horizontal_ball, header=None)
+
+    # Eliminar la primera fila que contiene encabezados incorrectos
+    dataset_cleaned = dataset.iloc[1:].reset_index(drop=True)
+    dataset_cleaned = dataset_cleaned.dropna()
+
+    # Guardar el CSV limpio sin índice
+    cleaned_csv_path = os.path.join(directory_to_save_desition_tree, 'dataset_cleaned.csv')
+    dataset_cleaned.to_csv(cleaned_csv_path, index=False, header=False)
+    print(f"CSV limpio guardado en: {cleaned_csv_path}")
+
+    # Definir características (X) y etiquetas (y)
+    X = dataset_cleaned.iloc[:, :2]  # Las dos primeras columnas son las características
+    y = dataset_cleaned.iloc[:, 2]  # La tercera columna es la etiqueta
+
+    # Dividir los datos en conjunto de entrenamiento y prueba
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Crear el clasificador de Árbol de Decisión
+    clf = DecisionTreeClassifier()
+
+    # Entrenar el modelo
+    clf.fit(X_train, y_train)
+
+    # Graficar el árbol de decisión
+    plt.figure(figsize=(12, 8))
+    plot_tree(clf, feature_names=['V. Bala', 'D. Bala'], class_names=['C. 0 (Suelo)', 'C. 1 (Salto)'], filled=True)
+    plt.show()
+
+    # Guardar el modelo entrenado COMO JOBLIB en el directorio especificado
+    model_path = os.path.join(directory_to_save_desition_tree, 'decision_tree_model.joblib')
+    joblib.dump(clf, model_path)
+    print(f"Modelo de árbol de decisión guardado en: {model_path}")
 
 
 # Función para disparar la bala
@@ -424,6 +497,7 @@ def print_menu_options():
 # Función para generar el modelo de árbol de decisión
 def train_models():
     generate_neural_network()
+    generate_desition_treee()
 
 
 # Función para mostrar el menú y seleccionar el modo de juego
@@ -471,6 +545,16 @@ def mostrar_menu():
                     menu_activo = False
                     pausa = False
                     cargar_modelo_neural_network()
+                elif evento.key == pygame.K_d:
+                    print("Press d")
+                    modo_auto = True
+                    modo_decision_tree = True
+                    mode_neural_network = False
+                    modo_manual = False
+                    modo_2_balas = False
+                    menu_activo = False
+                    pausa = False
+                    cargar_modelo_decision_tree()
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
                     pygame.quit()
@@ -531,7 +615,6 @@ def run_any_mode(correr):
         if not pausa:
             # Modo manual: el jugador controla el salto
             if not modo_auto:
-                print('modo manual')
                 if salto:
                     manejar_salto()
                 # Guardar los datos si estamos en modo manual
@@ -549,6 +632,17 @@ def run_any_mode(correr):
                             en_suelo = False
                     if salto:
                         manejar_salto()
+
+            # Modo automático: árbol de decisión
+            elif modo_decision_tree:
+                if modo_decision_tree and decision_tree_trained is not None:
+                    desplazamiento_bala = bala.x - jugador.x
+                    if predecir_salto_desition_tree(velocidad_bala, desplazamiento_bala) and en_suelo:
+                        print('saltando... prediction true...')
+                        salto = True
+                        en_suelo = False
+                if salto:
+                    manejar_salto()
 
             # Move right or left
             keys = pygame.key.get_pressed()
