@@ -110,7 +110,7 @@ fondo_x2 = w
 def disparar_bala():
     global bala_disparada, velocidad_bala
     if not bala_disparada:
-        velocidad_bala = random.randint(-8, -3)  # Velocidad aleatoria negativa para la bala
+        velocidad_bala = random.randint(-10, -4)  # Velocidad aleatoria negativa para la bala
         bala_disparada = True
 
 # Función para reiniciar la posición de la bala
@@ -118,6 +118,22 @@ def reset_bala():
     global bala, bala_disparada
     bala.x = w - 50  # Reiniciar la posición de la bala
     bala_disparada = False
+
+# Función para disparar la segunda bala
+def disparar_bala2():
+    global bala2_disparada, bala2, velocidad_bala2
+    if not bala2_disparada:
+        bala2.x = random.randint(0, w - 16)
+        bala2.y = 0
+        velocidad_bala2 = random.randint(3, 7)  # Velocidad aleatoria hacia abajo
+        bala2_disparada = True
+
+# Función para reiniciar la posición de la segunda bala
+def reset_bala2():
+    global bala2, bala2_disparada
+    bala2.x = random.randint(0, w - 16)
+    bala2.y = 0
+    bala2_disparada = False
 
 # Función para manejar el salto
 def manejar_salto():
@@ -137,6 +153,7 @@ def manejar_salto():
 # Función para actualizar el juego
 def update():
     global bala, velocidad_bala, current_frame, frame_count, fondo_x1, fondo_x2
+    global modo_decision_tree, salto
 
     # Mover el fondo
     fondo_x1 -= 1
@@ -181,22 +198,80 @@ def update():
         print("Colisión detectada!")
         reiniciar_juego()  # Terminar el juego y mostrar el menú
 
+    # Mover y dibujar la segunda bala si está en modo 2 o 3 balas
+    if modo_2_balas:
+        if bala2_disparada:
+            bala2.y += velocidad_bala2
+        else:
+            disparar_bala2()
+
+        # Si la bala2 sale de la pantalla, reiniciar su posición
+        if bala2.y > h:
+            reset_bala2()
+
+        pantalla.blit(bala_img, (bala2.x, bala2.y))
+
+        # Colisión entre la bala2 y el jugador
+        if jugador.colliderect(bala2):
+            print("Colisión con bala 2 detectada!")
+            reiniciar_juego()
+
 # Función para guardar datos del modelo en modo manual
 def guardar_datos():
-    global jugador, bala, velocidad_bala, salto
-    distancia = abs(jugador.x - bala.x)
-    salto_hecho = 1 if salto else 0  # 1 si saltó, 0 si no saltó
-    # Guardar velocidad de la bala, distancia al jugador y si saltó o no
-    datos_modelo.append((velocidad_bala, distancia, salto_hecho))
+    global jugador, bala, velocidad_bala, salto, bala2, velocidad_bala2
+    global modo_manual, modo_2_balas
+
+    if modo_manual:
+        distancia = abs(jugador.x - bala.x)
+        salto_hecho = 1 if salto else 0  # 1 si saltó, 0 si no saltó
+        # Guardar velocidad de la bala, distancia al jugador y si saltó o no
+        datos_modelo.append((velocidad_bala, distancia, salto_hecho))
+
+    if modo_2_balas:
+        distancia = abs(jugador.x - bala.x)
+        salto_hecho = 1 if salto else 0  # 1 si saltó, 0 si no saltó
+        # Guardar velocidad de la bala, distancia al jugador y si saltó o no
+        datos_modelo.append((velocidad_bala, distancia, salto_hecho))
+
+        distanciaY = abs(jugador.y - bala2.y)
+        datos_modelo_vertical_ball.append((velocidad_bala2, distanciaY))
+
 
 # Función para pausar el juego y guardar los datos
 def pausa_juego():
-    global pausa
+    global pausa, menu_activo
     pausa = not pausa
     if pausa:
         print("Juego pausado. Datos registrados hasta ahora:", datos_modelo)
+        menu_activo = True
+        mostrar_menu()
     else:
         print("Juego reanudado.")
+
+# Función para mostrar el menú de opciones
+def print_menu_options():
+    lineas = [
+        "============ MENU =============",
+        "",
+        "Press D - Auto Mode Decision Tree",
+        "Press N - Auto Mode Neural Network",
+        "Press R - Auto Mode Linear Regression",
+        "Press K - Auto Mode KNN",
+        "Press M - Manual Mode",
+        "Press G - Save DataSet",
+        "Press 2 - Double bullets Mode",
+        "Press Q - Exit",
+    ]
+
+    # Posición inicial
+    x = w // 4
+    y = h // 2 - (len(lineas) * 20)  # Ajusta el desplazamiento vertical según el número de líneas
+
+    for linea in lineas:
+        texto = fuente.render(linea, True, BLANCO)
+        pantalla.blit(texto, (x, y))
+        y += 40
+    pygame.display.flip()
 
 # Función para mostrar el menú y seleccionar el modo de juego
 def mostrar_menu():
