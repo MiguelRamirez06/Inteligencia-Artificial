@@ -258,7 +258,7 @@ def print_menu_options():
         "Press R - Auto Mode Linear Regression",
         "Press K - Auto Mode KNN",
         "Press M - Manual Mode",
-        "Press G - Save DataSet",
+        "Press S - Save DataSet",
         "Press 2 - Double bullets Mode",
         "Press Q - Exit",
     ]
@@ -275,10 +275,12 @@ def print_menu_options():
 
 # Función para mostrar el menú y seleccionar el modo de juego
 def mostrar_menu():
-    global menu_activo, modo_auto
+    global pausa, menu_activo, modo_auto, modo_manual, modo_2_balas
+    global modo_decision_tree, modo_manual, modo_auto, mode_neural_network
+    global datos_modelo, datos_modelo_vertical_ball
+
     pantalla.fill(NEGRO)
-    texto = fuente.render("Presiona 'A' para Auto, 'M' para Manual, o 'Q' para Salir", True, BLANCO)
-    pantalla.blit(texto, (w // 4, h // 2))
+    print_menu_options()
     pygame.display.flip()
 
     while menu_activo:
@@ -287,29 +289,47 @@ def mostrar_menu():
                 pygame.quit()
                 exit()
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_a:
-                    modo_auto = True
-                    menu_activo = False
-                elif evento.key == pygame.K_m:
+                if evento.key == pygame.K_m:
+                    print("Press m")
+                    datos_modelo = []
                     modo_auto = False
+                    modo_manual = True
+                    modo_auto = False
+                    modo_decision_tree = False
+                    modo_2_balas = False
                     menu_activo = False
+                    # correr = True
+                    pausa = False
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
                     pygame.quit()
                     exit()
 
+    pygame.display.flip()
+
+
 # Función para reiniciar el juego tras la colisión
 def reiniciar_juego():
-    global menu_activo, jugador, bala, nave, bala_disparada, salto, en_suelo
+    global menu_activo, jugador, bala, nave, bala_disparada, salto, en_suelo, bala2_disparada, salto_altura
+    global datos_modelo, datos_modelo_vertical_ball, datos_modelo_diagonal_ball
+
     menu_activo = True  # Activar de nuevo el menú
     jugador.x, jugador.y = 50, h - 100  # Reiniciar posición del jugador
     bala.x = w - 50  # Reiniciar posición de la bala
     nave.x, nave.y = w - 100, h - 100  # Reiniciar posición de la nave
     bala_disparada = False
     salto = False
+    salto_altura = 15  # Restablecer la velocidad de salto
     en_suelo = True
+    # Reiniciar la segunda bala
+    bala2.x = random.randint(0, w - 16)
+    bala2.y = 0
+    bala2_disparada = False
     # Mostrar los datos recopilados hasta el momento
     print("Datos recopilados para el modelo: ", datos_modelo)
+
+    # datos_modelo = []
+
     mostrar_menu()  # Mostrar el menú de nuevo para seleccionar modo
 
 
