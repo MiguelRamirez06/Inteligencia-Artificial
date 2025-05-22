@@ -57,6 +57,8 @@ class Nodo:
     def dibujar(self, ventana):
         pygame.draw.rect(ventana, self.color, (self.x, self.y, self.ancho, self.ancho))
 
+
+
 def crear_grid(filas, ancho):
     grid = []
     ancho_nodo = ancho // filas
@@ -90,6 +92,16 @@ def obtener_click_pos(pos, filas, ancho):
     col = x // ancho_nodo
     return fila, col
 
+# Función para determinar la heurística (distancia de Manhattan)
+def heuristica(actually_nodo, objetivo):
+    dist_fila = abs(objetivo.get_pos()[0] - actually_nodo.get_pos()[0])
+    dist_col = abs(objetivo.get_pos()[1] - actually_nodo.get_pos()[1])
+    return (dist_fila + dist_col) * 10
+
+# Función principal para reconstruir el camino
+def a_estrella(inicio, final, grid, ventana):
+    print("Iniciando A*")
+
 def main(ventana, ancho):
     FILAS = 10
     grid = crear_grid(FILAS, ancho)
@@ -104,6 +116,12 @@ def main(ventana, ancho):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 corriendo = False
+
+            # Iniciar el algoritmo A* al presionar la barra espaciadora
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    if inicio and fin:
+                        a_estrella(inicio, fin, grid, ventana)
 
             if pygame.mouse.get_pressed()[0]:  # Clic izquierdo
                 pos = pygame.mouse.get_pos()
