@@ -29,6 +29,8 @@ class Nodo:
         self.ancho = ancho
         self.total_filas = total_filas
         self.texto = None
+        self.nodo_ligado = None
+        self.numeracion = None
 
     def get_pos(self):
         return self.fila, self.col
@@ -54,6 +56,37 @@ class Nodo:
     def hacer_fin(self):
         self.color = PURPURA
 
+    def get_texto(self):
+        return self.texto
+
+    def set_texto(self, texto):
+        self.texto = texto
+
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
+    def set_nodo_ligado(self, nodo):
+        self.nodo_ligado = nodo
+
+    def get_nodo_ligado(self):
+        return self.nodo_ligado
+
+    def set_numeracion(self, num):
+        self.numeracion = num
+
+    def get_numeracion(self):
+        return self.numeracion
+
+    # Método para dibujar el camino visitado
+    def hacer_camino(self):
+        self.color = VERDE
+
+    def visitar(self):
+        self.color = AZUL
+
     def dibujar(self, ventana):
         pygame.draw.rect(ventana, self.color, (self.x, self.y, self.ancho, self.ancho))
 
@@ -74,6 +107,7 @@ class Nodo:
                 superficie_texto = fuente.render("👌", True, (0, 0, 0))
                 ventana.blit(superficie_texto, ((self.x + self.ancho) - int(self.ancho / 5),
                                                 (y - int(self.ancho / 5) - 5) if FILAS > 11 else y))
+
 
 def crear_grid(filas, ancho):
     grid = []
