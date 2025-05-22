@@ -57,7 +57,23 @@ class Nodo:
     def dibujar(self, ventana):
         pygame.draw.rect(ventana, self.color, (self.x, self.y, self.ancho, self.ancho))
 
+        texto = self.texto
 
+        # Dibuja el texto en el nodo
+        if texto is not None:
+            fuente = pygame.font.SysFont("Arial", int(self.ancho / 5))
+            palabras = texto.split("-")
+            y = self.y
+            # Ajusta el tamaño de la fuente según el ancho del nodo
+            for i in range(len(palabras)):
+                superficie_texto = fuente.render(palabras[i], True, (0, 0, 0))
+                ventana.blit(superficie_texto, (self.x, y))
+                y += int(self.ancho / 5) + 5
+            # Dibuja el símbolo "👌" cuando el nodo es visitado
+            if self.es_visitado() or self.es_fin() or self.es_inicio() or self.color == VERDE:
+                superficie_texto = fuente.render("👌", True, (0, 0, 0))
+                ventana.blit(superficie_texto, ((self.x + self.ancho) - int(self.ancho / 5),
+                                                (y - int(self.ancho / 5) - 5) if FILAS > 11 else y))
 
 def crear_grid(filas, ancho):
     grid = []
