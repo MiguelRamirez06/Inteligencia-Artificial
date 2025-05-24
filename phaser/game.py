@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 import joblib
-from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from sklearn.tree import DecisionTreeClassifier
 from tensorflow.keras.models import Sequential, save_model, load_model
 from tensorflow.keras.layers import Dense
 from sklearn.model_selection import train_test_split
@@ -19,9 +19,7 @@ directory_to_save_desition_tree = 'C:/Users/migue/PycharmProjects/InteligenciaAr
 decision_tree_trained = None
 modo_decision_tree = False
 
-# Variables para el modelo de regresión lineal
-linear_regression_model = None
-directory_to_save_linear_regression = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/linear_regression'
+# Variables para el modelo de red neuronal
 directory_to_save_neural_network = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/neural_network'
 neural_network_trained = None
 mode_neural_network = False
@@ -29,7 +27,7 @@ prediction_counter = 0
 
 # Variables para el modelo KNN
 knn_model = None
-directory_to_save_knn = 'C:/Users/migue/Downloads/phaser/phaser/knn_model'
+directory_to_save_knn = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/knn_model'
 
 last_csv_path_saved_for_horizontal_ball = ''
 last_csv_path_saved_for_vertical_ball = ''
@@ -59,6 +57,12 @@ salto_altura = 15  # Velocidad inicial de salto
 gravedad = 1
 en_suelo = True
 
+# Variables de retroceso
+retroceso = False
+retroceso_distancia = 10
+regreso = 0.5
+en_pocision_inicial = True
+
 # Variables de pausa y menú
 pausa = False
 fuente = pygame.font.SysFont('Arial', 24)
@@ -71,9 +75,6 @@ modo_2_balas = False
 datos_modelo = []
 datos_modelo_vertical_ball = []
 datos_modelo_diagonal_ball = []
-
-# Lista para guardar los datos de velocidad, distancia y salto (target)
-datos_modelo = []
 
 # Cargar las imágenes
 jugador_frames = [
@@ -95,6 +96,7 @@ fondo_img = pygame.transform.scale(fondo_img, (w, h))
 jugador = pygame.Rect(50, h - 100, 32, 48)
 bala = pygame.Rect(w - 50, h - 90, 16, 16)
 nave = pygame.Rect(w - 100, h - 100, 64, 64)
+nave2 = pygame.Rect(10, 0, 32, 48)
 menu_rect = pygame.Rect(w // 2 - 135, h // 2 - 90, 270, 180)  # Tamaño del menú
 
 # Variables para la animación del jugador
@@ -107,8 +109,8 @@ velocidad_bala = -20  # Velocidad de la bala hacia la izquierda
 bala_disparada = False
 
 # Variables para la segunda bala
-bala2 = pygame.Rect(random.randint(0, w - 16), 0, 16, 16)
-velocidad_bala2 = 5  # Velocidad de la bala hacia abajo
+bala2 = pygame.Rect(50, h - 100, 16, 16)
+velocidad_bala2 = 10  # Velocidad de la bala hacia abajo
 bala2_disparada = False
 
 # Variables para el fondo en movimiento
@@ -144,7 +146,6 @@ def predecir_salto_neural_network(velocidad_bala, desplazamiento_bala):
     # Podemos establecer un umbral, por ejemplo, 0.5
     return prediction[0][0] > 0.5
 
-
 def generate_neural_network():
     global last_csv_path_saved_for_horizontal_ball, directory_to_save_neural_network
 
@@ -165,20 +166,15 @@ def generate_neural_network():
         Dense(1, activation='sigmoid')
     ])
 
-    print("Before to compile...")
     # Compilar el modelo
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Entrenar el modelo
     model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
 
-    print("After fit...")
-
     # Evaluar el modelo
     loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
     print(f"\nPrecisión en el conjunto de prueba: {accuracy:.2f}")
-
-    print("Before to save...")
 
     # Guardar el modelo
     save_model(model, os.path.join(directory_to_save_neural_network, 'neural_network_model.keras'))
@@ -202,9 +198,8 @@ def predecir_salto_desition_tree(velocidad_bala, desplazamiento_bala):
     global decision_tree_trained
     if decision_tree_trained is not None:
         prediccion = decision_tree_trained.predict([[velocidad_bala, desplazamiento_bala]])
-        print("PREDICción de salto: " + str(prediccion[0]))
+        #print("Predicción de salto: " + str(prediccion[0]))
         if prediccion[0] == '1':
-            print("RETURN DESITION TREE WITH TRUE")
             return True
     return False
 
@@ -280,6 +275,8 @@ def predecir_salto_knn(velocidad_bala, desplazamiento_bala):
     # Retornar True si la predicción es 1 (salto), False en caso contrario
     return prediction[0] == 1
 
+
+
 def generate_knn_model():
     global last_csv_path_saved_for_horizontal_ball, directory_to_save_knn
 
@@ -314,7 +311,7 @@ def generate_knn_model():
 def disparar_bala():
     global bala_disparada, velocidad_bala
     if not bala_disparada:
-        velocidad_bala = random.randint(-10, -4)  # Velocidad aleatoria negativa para la bala
+        velocidad_bala = random.randint(-12, -7)  # Velocidad aleatoria negativa para la bala
         bala_disparada = True
 
 # Función para reiniciar la posición de la bala
@@ -327,15 +324,16 @@ def reset_bala():
 def disparar_bala2():
     global bala2_disparada, bala2, velocidad_bala2
     if not bala2_disparada:
-        bala2.x = random.randint(0, w - 16)
+        bala2.x = w - 950
         bala2.y = 0
-        velocidad_bala2 = random.randint(3, 7)  # Velocidad aleatoria hacia abajo
+        # velocidad_bala2 = random.randint(3, 7)  # Velocidad aleatoria hacia abajo
+        velocidad_bala2 = 10  # Velocidad constante hacia abajo
         bala2_disparada = True
 
 # Función para reiniciar la posición de la segunda bala
 def reset_bala2():
     global bala2, bala2_disparada
-    bala2.x = random.randint(0, w - 16)
+    bala2.x = w - 950
     bala2.y = 0
     bala2_disparada = False
 
@@ -353,6 +351,21 @@ def manejar_salto():
             salto = False
             salto_altura = 15  # Restablecer la velocidad de salto
             en_suelo = True
+
+# Función para manejar el retroceso
+def manejar_retroceso():
+    global jugador, retroceso, retroceso_distancia, regreso, en_pocision_inicial
+
+    if retroceso:
+        jugador.x += retroceso_distancia  # Mover al jugador hacia atras
+        retroceso_distancia -= regreso  # Aplicar gravedad (reduce la velocidad del retroceso)
+
+        # Si el jugador llega a la posición inicial, detener el retroceso
+        if jugador.x <= 0:
+            jugador.x = 50
+            retroceso = False
+            retroceso_distancia = 10
+            en_pocision_inicial = True
 
 # Función para actualizar el juego
 def update():
@@ -386,6 +399,7 @@ def update():
 
     # Dibujar la nave
     pantalla.blit(nave_img, (nave.x, nave.y))
+    pantalla.blit(nave_img, (nave2.x, nave2.y))
 
     # Mover y dibujar la bala
     if bala_disparada:
@@ -402,7 +416,7 @@ def update():
         print("Colisión detectada!")
         reiniciar_juego()  # Terminar el juego y mostrar el menú
 
-    # Mover y dibujar la segunda bala si está en modo 2 o 3 balas
+    # Mover y dibujar la segunda bala si está en modo 2 balas
     if modo_2_balas:
         if bala2_disparada:
             bala2.y += velocidad_bala2
@@ -424,6 +438,7 @@ def update():
 def guardar_datos():
     global jugador, bala, velocidad_bala, salto, bala2, velocidad_bala2
     global modo_manual, modo_2_balas
+    global retroceso
 
     if modo_manual:
         distancia = abs(jugador.x - bala.x)
@@ -434,11 +449,12 @@ def guardar_datos():
     if modo_2_balas:
         distancia = abs(jugador.x - bala.x)
         salto_hecho = 1 if salto else 0  # 1 si saltó, 0 si no saltó
+        retroceso_hecho = 1 if retroceso else 0  # 1 si retrocedió, 0 si no retrocedió
         # Guardar velocidad de la bala, distancia al jugador y si saltó o no
         datos_modelo.append((velocidad_bala, distancia, salto_hecho))
 
         distanciaY = abs(jugador.y - bala2.y)
-        datos_modelo_vertical_ball.append((velocidad_bala2, distanciaY))
+        datos_modelo_vertical_ball.append((velocidad_bala2, distanciaY, retroceso_hecho))
 
 
 # Función para pausar el juego y guardar los datos
@@ -454,8 +470,8 @@ def pausa_juego():
 
 # Función para guardar el dataset en un archivo CSV
 def save_data_set():
-    global last_csv_path_saved_for_horizontal_ball, last_csv_path_saved_for_vertical_ball, last_csv_path_saved_for_diagonal_ball
-    global datos_modelo, datos_modelo_vertical_ball, datos_modelo_diagonal_ball
+    global last_csv_path_saved_for_horizontal_ball, last_csv_path_saved_for_vertical_ball
+    global datos_modelo, datos_modelo_vertical_ball
 
     if modo_manual:
         # Generar un nombre de archivo único con la fecha y hora actual
@@ -537,9 +553,10 @@ def print_menu_options():
         "Press D - Auto Mode Decision Tree",
         # "Press R - Auto Mode Linear Regression",
         "Press K - Auto Mode KNN",
-        "Press T - Training Models",
+        # "Press R - Auto Mode Double bullets",
         "Press S - Save DataSet",
-        "Press 2 - Double bullets Mode",
+        "Press T - Training Models",
+        # "Press 2 - Double bullets Mode",
         "",
         "Press Q - Exit",
     ]
@@ -549,12 +566,12 @@ def print_menu_options():
     y = h // 2 - (len(lineas) * 20)  # Ajusta el desplazamiento vertical según el número de líneas
 
     for linea in lineas:
-        texto = fuente.render(linea, True, BLANCO)
+        texto = fuente.render(linea, True, NEGRO)
         pantalla.blit(texto, (x, y))
         y += 40
     pygame.display.flip()
 
-# Función para generar el modelo de árbol de decisión
+# Función para entrenar los modelos
 def train_models():
     generate_neural_network()
     generate_desition_treee()
@@ -567,7 +584,7 @@ def mostrar_menu():
     global modo_decision_tree, modo_manual, modo_auto, mode_neural_network
     global datos_modelo, datos_modelo_vertical_ball
 
-    pantalla.fill(NEGRO)
+    pantalla.fill(BLANCO)
     print_menu_options()
     pygame.display.flip()
 
@@ -583,10 +600,15 @@ def mostrar_menu():
                     modo_manual = True
                     modo_auto = False
                     modo_decision_tree = False
-                    modo_2_balas = False
+                    modo_2_balas = True
                     menu_activo = False
-                    # correr = True
                     pausa = False
+                elif evento.key == pygame.K_2:
+                    datos_modelo = []
+                    modo_auto = False
+                    modo_manual = False
+                    modo_2_balas = True
+                    menu_activo = False
                 elif evento.key == pygame.K_s:
                     save_data_set()
                     menu_activo = True
@@ -632,6 +654,7 @@ def mostrar_menu():
 def reiniciar_juego():
     global menu_activo, jugador, bala, nave, bala_disparada, salto, en_suelo, bala2_disparada, salto_altura
     global datos_modelo, datos_modelo_vertical_ball, datos_modelo_diagonal_ball
+    global retroceso, retroceso_distancia, regreso, en_pocision_inicial
 
     menu_activo = True  # Activar de nuevo el menú
     jugador.x, jugador.y = 50, h - 100  # Reiniciar posición del jugador
@@ -639,8 +662,11 @@ def reiniciar_juego():
     nave.x, nave.y = w - 100, h - 100  # Reiniciar posición de la nave
     bala_disparada = False
     salto = False
+    retroceso = False
     salto_altura = 15  # Restablecer la velocidad de salto
+    retroceso_distancia = 10
     en_suelo = True
+    en_pocision_inicial = True
     # Reiniciar la segunda bala
     bala2.x = random.randint(0, w - 16)
     bala2.y = 0
@@ -654,9 +680,11 @@ def reiniciar_juego():
 
 
 def run_any_mode(correr):
-    global salto, en_suelo, bala_disparada
-    global modo_decision_tree, modo_manual, modo_auto
-    global bala, velocidad_bala, jugador, prediction_counter
+    global salto, en_suelo, bala_disparada, bala2_disparada
+    global modo_decision_tree, modo_manual, modo_auto, modo_2_balas
+    global bala, velocidad_bala, jugador, prediction_counter, velocidad_bala2
+    global retroceso, regreso, en_pocision_inicial
+
     pygame.display.flip()
     reloj = pygame.time.Clock()
     while correr:
@@ -664,12 +692,15 @@ def run_any_mode(correr):
             if evento.type == pygame.QUIT:
                 correr = False
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_SPACE and en_suelo and not pausa:  # Detectar la tecla espacio para saltar
+                if evento.key == pygame.K_SPACE and en_suelo and not pausa or evento.key == pygame.K_UP:  # Detectar la tecla espacio para saltar
                     # print('saltando.....')
                     salto = True
                     en_suelo = False
                     salto_altura = 15  # Restablecer la velocidad de salto al iniciar un nuevo salto
-
+                if evento.key == pygame.K_RIGHT and en_pocision_inicial and not pausa:  # Detectar la flecha izquierda para retroceder
+                    retroceso = True
+                    en_pocision_inicial = False
+                    retroceso_distancia = 10  # Restablecer la velocidad de retroceso al iniciar un nuevo retroceso
                 if evento.key == pygame.K_p:  # Presiona 'p' para pausar el juego
                     pausa_juego()
                 if evento.key == pygame.K_q:  # Presiona 'q' para terminar el juego
@@ -682,6 +713,8 @@ def run_any_mode(correr):
             if not modo_auto:
                 if salto:
                     manejar_salto()
+                if retroceso:
+                    manejar_retroceso()
                 # Guardar los datos si estamos en modo manual
                 guardar_datos()
 
@@ -719,22 +752,27 @@ def run_any_mode(correr):
                 if salto:
                     manejar_salto()
 
-            # Move right or left
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                jugador.x -= 5
-            if keys[pygame.K_RIGHT]:
-                jugador.x += 5
+            # Movimiento manual del jugador
+            # keys = pygame.key.get_pressed()
+            # if keys[pygame.K_LEFT]:
+                # jugador.x -= 5
+            # if keys[pygame.K_RIGHT]:
+                # jugador.x += 5
 
             # Mantener al jugador dentro de los límites de la pantalla
             if jugador.x < 0:
                 jugador.x = 0
             if jugador.x > w - jugador.width:
                 jugador.x = w - jugador.width
+            if jugador.y < 0:
+                jugador.y = 0
+            if jugador.y > h - jugador.height:
+                jugador.y = h - jugador.height
 
             # Actualizar el juego
             if not bala_disparada:
                 disparar_bala()
+
             update()
 
         # Actualizar la pantalla
@@ -746,6 +784,7 @@ def main():
     global salto, en_suelo, bala_disparada
     global modo_decision_tree, modo_manual, modo_auto
     global bala, velocidad_bala, jugador, prediction_counter
+    global retroceso, en_pocision_inicial
 
     mostrar_menu()  # Mostrar el menú al inicio
     correr = True
