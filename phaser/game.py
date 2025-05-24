@@ -74,7 +74,6 @@ modo_2_balas = False
 # Lista para guardar los datos de velocidad, distancia y salto (target)
 datos_modelo = []
 datos_modelo_vertical_ball = []
-datos_modelo_diagonal_ball = []
 
 # Cargar las imágenes
 jugador_frames = [
@@ -110,13 +109,12 @@ bala_disparada = False
 
 # Variables para la segunda bala
 bala2 = pygame.Rect(50, h - 100, 16, 16)
-velocidad_bala2 = 10  # Velocidad de la bala hacia abajo
+velocidad_bala2 = 3  # Velocidad de la bala hacia abajo
 bala2_disparada = False
 
 # Variables para el fondo en movimiento
 fondo_x1 = 0
 fondo_x2 = w
-
 
 ### ---------------- NEURAL NETWORK ---------------- ###
 
@@ -253,16 +251,18 @@ def generate_desition_treee():
 ### ---------------- KNN ----------------- ###
 
 def cargar_modelo_knn():
-    global knn_model
+    global knn_model_horizontal_ball, knn_model_vertical_ball
     try:
-        model_path = os.path.join(directory_to_save_knn, 'knn_model.joblib')
-        knn_model = joblib.load(model_path)
-        print("Modelo KNN cargado exitosamente.")
+        model_path_horizontal_ball = os.path.join(directory_to_save_knn, 'knn_model_horizontal_ball.joblib')
+        knn_model_horizontal_ball = joblib.load(model_path_horizontal_ball)
+        model_path_vertical_ball = os.path.join(directory_to_save_knn, 'knn_model_vertical_ball.joblib')
+        knn_model_vertical_ball = joblib.load(model_path_vertical_ball)
+        print("Modelos KNN cargados exitosamente.")
     except:
         print("No se pudo cargar el modelo KNN.")
 
 def predecir_salto_knn(velocidad_bala, desplazamiento_bala):
-    if knn_model is None:
+    if knn_model_horizontal_ball is None:
         print("El modelo KNN no está cargado.")
         return False
 
@@ -270,41 +270,64 @@ def predecir_salto_knn(velocidad_bala, desplazamiento_bala):
     input_data = np.array([[velocidad_bala, desplazamiento_bala]])
 
     # Realizar la predicción
-    prediction = knn_model.predict(input_data)
+    prediction = knn_model_horizontal_ball.predict(input_data)
 
     # Retornar True si la predicción es 1 (salto), False en caso contrario
     return prediction[0] == 1
 
+def predecir_retroceso_knn(velocidad_bala, desplazamiento_bala):
+    if knn_model_vertical_ball is None:
+        print("El modelo KNN no está cargado.")
+        return False
 
+    # Preparar los datos de entrada
+    input_data = np.array([[velocidad_bala, desplazamiento_bala]])
+
+    # Realizar la predicción
+    prediction = knn_model_vertical_ball.predict(input_data)
+
+    # Retornar True si la predicción es 1 (salto), False en caso contrario
+    return prediction[0] == 1
 
 def generate_knn_model():
-    global last_csv_path_saved_for_horizontal_ball, directory_to_save_knn
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_knn, last_csv_path_saved_for_vertical_ball
 
     # Cargar el dataset
-    df = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+    df_horizontal = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+    df_vertical = pd.read_csv(os.path.join(last_csv_path_saved_for_vertical_ball))
 
     # Separar características (X) y etiquetas (y)
-    X = df[['Velocidad Bala', 'Desplazamiento Bala']].values
-    y = df['Estatus Salto'].values
+    X_horizontal = df_horizontal[['Velocidad Bala', 'Desplazamiento Bala']].values
+    y_horizontal = df_horizontal['Estatus Salto'].values
+    X_vertical = df_vertical[['Velocidad Bala', 'Desplazamiento Bala Y']].values
+    y_vertical = df_vertical['Estatus Retroceso'].values
 
     # Dividir los datos en conjuntos de entrenamiento y prueba
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train_vertical, X_test_vertical, y_train_vertical, y_test_vertical = train_test_split(X_vertical, y_vertical, test_size=0.2, random_state=42)
+    X_train_horizontal, X_test_horizontal, y_train_horizontal, y_test_horizontal = train_test_split(X_horizontal, y_horizontal, test_size=0.2, random_state=42)
 
     # Crear el modelo KNN
-    knn = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
+    knn_horizontal = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
+    knn_vertical = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
 
     # Entrenar el modelo
-    knn.fit(X_train, y_train)
+    knn_horizontal.fit(X_train_horizontal, y_train_horizontal)
+    knn_vertical.fit(X_train_vertical, y_train_vertical)
 
     # Evaluar el modelo
-    score = knn.score(X_test, y_test)
-    print(f"Precisión del modelo KNN: {score:.2f}")
+    score_horizontal = knn_horizontal.score(X_test_horizontal, y_test_horizontal)
+    score_vertical = knn_vertical.score(X_test_vertical, y_test_vertical)
+    print(f"Precisión del modelo KNN para la bala vertical: {score_vertical:.2f}")
+    print(f"Precisión del modelo KNN para la bala horizontal: {score_horizontal:.2f}")
 
     # Guardar el modelo
     os.makedirs(directory_to_save_knn, exist_ok=True)
-    model_path = os.path.join(directory_to_save_knn, 'knn_model.joblib')
-    joblib.dump(knn, model_path)
-    print(f"Modelo KNN guardado en: {model_path}")
+    model_path_vertical_ball = os.path.join(directory_to_save_knn, 'knn_model_vertical_ball.joblib')
+    joblib.dump(knn_vertical, model_path_vertical_ball)
+    print(f"Modelo KNN guardado en: {model_path_vertical_ball}")
+    model_path_horizontal_ball = os.path.join(directory_to_save_knn, 'knn_model_horizontal_ball.joblib')
+    joblib.dump(knn_horizontal, model_path_horizontal_ball)
+    print(f"Modelo KNN guardado en: {model_path_horizontal_ball}")
 
 
 # Función para disparar la bala
@@ -326,8 +349,8 @@ def disparar_bala2():
     if not bala2_disparada:
         bala2.x = w - 950
         bala2.y = 0
-        # velocidad_bala2 = random.randint(3, 7)  # Velocidad aleatoria hacia abajo
-        velocidad_bala2 = 10  # Velocidad constante hacia abajo
+        #velocidad_bala2 = random.randint(7, 12)  # Velocidad aleatoria hacia abajo
+        velocidad_bala2 = 3  # Velocidad constante hacia abajo
         bala2_disparada = True
 
 # Función para reiniciar la posición de la segunda bala
@@ -412,9 +435,9 @@ def update():
     pantalla.blit(bala_img, (bala.x, bala.y))
 
     # Colisión entre la bala y el jugador
-    if jugador.colliderect(bala):
-        print("Colisión detectada!")
-        reiniciar_juego()  # Terminar el juego y mostrar el menú
+    #if jugador.colliderect(bala):
+        #print("Colisión detectada!")
+        #reiniciar_juego()  # Terminar el juego y mostrar el menú
 
     # Mover y dibujar la segunda bala si está en modo 2 balas
     if modo_2_balas:
@@ -430,9 +453,9 @@ def update():
         pantalla.blit(bala_img, (bala2.x, bala2.y))
 
         # Colisión entre la bala2 y el jugador
-        if jugador.colliderect(bala2):
-            print("Colisión con bala 2 detectada!")
-            reiniciar_juego()
+        #if jugador.colliderect(bala2):
+            #print("Colisión con bala 2 detectada!")
+            #reiniciar_juego()
 
 # Función para guardar datos del modelo en modo manual
 def guardar_datos():
@@ -440,7 +463,7 @@ def guardar_datos():
     global modo_manual, modo_2_balas
     global retroceso
 
-    if modo_manual:
+    if modo_manual and not modo_2_balas:
         distancia = abs(jugador.x - bala.x)
         salto_hecho = 1 if salto else 0  # 1 si saltó, 0 si no saltó
         # Guardar velocidad de la bala, distancia al jugador y si saltó o no
@@ -452,8 +475,7 @@ def guardar_datos():
         retroceso_hecho = 1 if retroceso else 0  # 1 si retrocedió, 0 si no retrocedió
         # Guardar velocidad de la bala, distancia al jugador y si saltó o no
         datos_modelo.append((velocidad_bala, distancia, salto_hecho))
-
-        distanciaY = abs(jugador.y - bala2.y)
+        distanciaY = jugador.y - bala2.y
         datos_modelo_vertical_ball.append((velocidad_bala2, distanciaY, retroceso_hecho))
 
 
@@ -473,7 +495,7 @@ def save_data_set():
     global last_csv_path_saved_for_horizontal_ball, last_csv_path_saved_for_vertical_ball
     global datos_modelo, datos_modelo_vertical_ball
 
-    if modo_manual:
+    if modo_manual and not modo_2_balas:
         # Generar un nombre de archivo único con la fecha y hora actual
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename_horizontal_ball = f"dataset_horizontal_ball_{timestamp}.csv"
@@ -529,7 +551,7 @@ def save_data_set():
                 writer = csv.writer(csvfile)
 
                 # Escribir el encabezado
-                writer.writerow(["Velocidad Bala", "Desplazamiento Bala Y", ""])
+                writer.writerow(["Velocidad Bala", "Desplazamiento Bala Y", "Estatus Retroceso"])
 
                 # Escribir los datos
                 for dato in datos_modelo_vertical_ball:
@@ -553,7 +575,6 @@ def print_menu_options():
         "Press D - Auto Mode Decision Tree",
         # "Press R - Auto Mode Linear Regression",
         "Press K - Auto Mode KNN",
-        # "Press R - Auto Mode Double bullets",
         "Press S - Save DataSet",
         "Press T - Training Models",
         # "Press 2 - Double bullets Mode",
@@ -573,8 +594,8 @@ def print_menu_options():
 
 # Función para entrenar los modelos
 def train_models():
-    generate_neural_network()
-    generate_desition_treee()
+    #generate_neural_network()
+    #generate_desition_treee()
     generate_knn_model()
 
 
@@ -620,7 +641,7 @@ def mostrar_menu():
                     modo_decision_tree = False
                     mode_neural_network = True
                     modo_manual = False
-                    modo_2_balas = False
+                    modo_2_balas = True
                     menu_activo = False
                     pausa = False
                     cargar_modelo_neural_network()
@@ -629,7 +650,7 @@ def mostrar_menu():
                     modo_decision_tree = True
                     mode_neural_network = False
                     modo_manual = False
-                    modo_2_balas = False
+                    modo_2_balas = True
                     menu_activo = False
                     pausa = False
                     cargar_modelo_decision_tree()
@@ -638,7 +659,7 @@ def mostrar_menu():
                     modo_decision_tree = False
                     mode_neural_network = False
                     modo_manual = False
-                    modo_2_balas = False
+                    modo_2_balas = True
                     menu_activo = False
                     pausa = False
                     cargar_modelo_knn()
@@ -653,7 +674,7 @@ def mostrar_menu():
 # Función para reiniciar el juego tras la colisión
 def reiniciar_juego():
     global menu_activo, jugador, bala, nave, bala_disparada, salto, en_suelo, bala2_disparada, salto_altura
-    global datos_modelo, datos_modelo_vertical_ball, datos_modelo_diagonal_ball
+    global datos_modelo, datos_modelo_vertical_ball
     global retroceso, retroceso_distancia, regreso, en_pocision_inicial
 
     menu_activo = True  # Activar de nuevo el menú
@@ -682,7 +703,7 @@ def reiniciar_juego():
 def run_any_mode(correr):
     global salto, en_suelo, bala_disparada, bala2_disparada
     global modo_decision_tree, modo_manual, modo_auto, modo_2_balas
-    global bala, velocidad_bala, jugador, prediction_counter, velocidad_bala2
+    global bala, velocidad_bala, jugador, prediction_counter, velocidad_bala2, bala2
     global retroceso, regreso, en_pocision_inicial
 
     pygame.display.flip()
@@ -743,14 +764,21 @@ def run_any_mode(correr):
                     manejar_salto()
 
             # Modo automático: KNN
-            elif modo_auto and knn_model is not None:
+            elif modo_auto and knn_model_horizontal_ball is not None and knn_model_vertical_ball is not None:
                 desplazamiento_bala = bala.x - jugador.x
+                desplazamiento_bala_y = bala2.y - jugador.y
                 if predecir_salto_knn(velocidad_bala, desplazamiento_bala) and en_suelo:
                     print('saltando... prediction true...')
                     salto = True
                     en_suelo = False
+                if predecir_retroceso_knn(velocidad_bala2, desplazamiento_bala_y) and en_pocision_inicial:
+                    print('retrocediendo... prediction true...')
+                    retroceso = True
+                    en_pocision_inicial = False
                 if salto:
                     manejar_salto()
+                if retroceso:
+                    manejar_retroceso()
 
             # Movimiento manual del jugador
             # keys = pygame.key.get_pressed()
