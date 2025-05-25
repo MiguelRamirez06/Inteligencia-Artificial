@@ -13,10 +13,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import plot_tree
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 directory_to_save_datasets = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/datasets'
 directory_to_save_desition_tree = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/desition_tree'
-decision_tree_trained = None
+decision_tree_trained_horizontal_ball = None
+decision_tree_trained_vertical_ball = None
 modo_decision_tree = False
 
 # Variables para el modelo de red neuronal
@@ -183,29 +185,38 @@ def generate_neural_network():
 ### ---------------- DESICITION TREE --------------- ###
 
 def cargar_modelo_decision_tree():
-    global decision_tree_trained
+    global decision_tree_trained_horizontal_ball, decision_tree_trained_vertical_ball
     print(directory_to_save_desition_tree)
     try:
-        decision_tree_trained = joblib.load(directory_to_save_desition_tree + '/decision_tree_model.joblib')
+        decision_tree_trained_horizontal_ball = joblib.load(directory_to_save_desition_tree + '/decision_tree_model_horizontal_ball.joblib')
+        decision_tree_trained_vertical_ball = joblib.load(directory_to_save_desition_tree + '/decision_tree_model_vertical_ball.joblib')
         print("Desition tree cargado exitosamente.")
     except:
         print("No se pudo cargar el modelo de árbol de decisión")
 
 
 def predecir_salto_desition_tree(velocidad_bala, desplazamiento_bala):
-    global decision_tree_trained
-    if decision_tree_trained is not None:
-        prediccion = decision_tree_trained.predict([[velocidad_bala, desplazamiento_bala]])
+    global decision_tree_trained_horizontal_ball
+    if decision_tree_trained_horizontal_ball is not None:
+        prediccion = decision_tree_trained_horizontal_ball.predict([[velocidad_bala, desplazamiento_bala]])
         #print("Predicción de salto: " + str(prediccion[0]))
         if prediccion[0] == '1':
             return True
     return False
 
+def predecir_retroceso_desition_tree(velocidad_bala, desplazamiento_bala):
+    global decision_tree_trained_vertical_ball
+    if decision_tree_trained_vertical_ball is not None:
+        prediccion = decision_tree_trained_vertical_ball.predict([[velocidad_bala, desplazamiento_bala]])
+        #print("Predicción de salto: " + str(prediccion[0]))
+        if prediccion[0] == '1':
+            return True
+    return False
 
 def generate_desition_treee():
-    global last_csv_path_saved_for_horizontal_ball, directory_to_save_desition_tree
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_desition_tree, last_csv_path_saved_for_vertical_ball
 
-    if last_csv_path_saved_for_horizontal_ball == '':
+    if last_csv_path_saved_for_horizontal_ball == '' or last_csv_path_saved_for_vertical_ball == '':
         print('Primero debe de guardar el data set')
         return
 
@@ -213,39 +224,64 @@ def generate_desition_treee():
     os.makedirs(directory_to_save_desition_tree, exist_ok=True)
 
     # Leer el CSV sin encabezados
-    dataset = pd.read_csv(last_csv_path_saved_for_horizontal_ball, header=None)
+    dataset_horizontal_ball = pd.read_csv(last_csv_path_saved_for_horizontal_ball, header=None)
+    dataset_vertical_ball = pd.read_csv(last_csv_path_saved_for_vertical_ball, header=None)
 
     # Eliminar la primera fila que contiene encabezados incorrectos
-    dataset_cleaned = dataset.iloc[1:].reset_index(drop=True)
-    dataset_cleaned = dataset_cleaned.dropna()
+    dataset_cleaned_horizontal_ball = dataset_horizontal_ball.iloc[1:].reset_index(drop=True)
+    dataset_cleaned_horizontal_ball = dataset_cleaned_horizontal_ball.dropna()
+    dataset_cleaned_vertical_ball = dataset_vertical_ball.iloc[1:].reset_index(drop=True)
+    dataset_cleaned_vertical_ball = dataset_cleaned_vertical_ball.dropna()
 
     # Guardar el CSV limpio sin índice
-    cleaned_csv_path = os.path.join(directory_to_save_desition_tree, 'dataset_cleaned.csv')
-    dataset_cleaned.to_csv(cleaned_csv_path, index=False, header=False)
-    print(f"CSV limpio guardado en: {cleaned_csv_path}")
+    cleaned_csv_path_horizontal_ball = os.path.join(directory_to_save_desition_tree, 'dataset_cleaned_horizontal_ball.csv')
+    dataset_cleaned_horizontal_ball.to_csv(cleaned_csv_path_horizontal_ball, index=False, header=False)
+    print(f"CSV limpio guardado en: {cleaned_csv_path_horizontal_ball}")
+    cleaned_csv_path_vertical_ball = os.path.join(directory_to_save_desition_tree, 'dataset_cleaned_vertical_ball.csv')
+    dataset_cleaned_vertical_ball.to_csv(cleaned_csv_path_vertical_ball, index=False, header=False)
+    #print(f"CSV limpio guardado en: {cleaned_csv_path_vertical_ball}")
 
     # Definir características (X) y etiquetas (y)
-    X = dataset_cleaned.iloc[:, :2]  # Las dos primeras columnas son las características
-    y = dataset_cleaned.iloc[:, 2]  # La tercera columna es la etiqueta
+    X_horizontal = dataset_cleaned_horizontal_ball.iloc[:, :2]  # Las dos primeras columnas son las características
+    y_horizontal = dataset_cleaned_horizontal_ball.iloc[:, 2]  # La tercera columna es la etiqueta
+    X_vertical = dataset_cleaned_vertical_ball.iloc[:, :2]  # Las dos primeras columnas son las características
+    y_vertical = dataset_cleaned_vertical_ball.iloc[:, 2]  # La tercera columna es la etiqueta
 
     # Dividir los datos en conjunto de entrenamiento y prueba
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train_horizontal, X_test_horizontal, y_train_horizontal, y_test_horizontal = train_test_split(X_horizontal, y_horizontal, test_size=0.2, random_state=42)
+    X_train_vertical, X_test_vertical, y_train_vertical, y_test_vertical = train_test_split(X_vertical, y_vertical, test_size=0.2, random_state=42)
 
     # Crear el clasificador de Árbol de Decisión
-    clf = DecisionTreeClassifier()
+    clf_horizontal = DecisionTreeClassifier()
+    clf_vertical = DecisionTreeClassifier()
 
     # Entrenar el modelo
-    clf.fit(X_train, y_train)
+    clf_horizontal.fit(X_train_horizontal, y_train_horizontal)
+    clf_vertical.fit(X_train_vertical, y_train_vertical)
 
-    # Graficar el árbol de decisión
-    plt.figure(figsize=(12, 8))
-    plot_tree(clf, feature_names=['V. Bala', 'D. Bala'], class_names=['C. 0 (Suelo)', 'C. 1 (Salto)'], filled=True)
-    plt.show()
+    # Guardar el arbol de decisión en un archivo PDF
+    pdf_path_horizontal_ball = os.path.join(directory_to_save_desition_tree, 'decision_tree_horizontal_ball.pdf')
+    pdf_path_vertical_ball = os.path.join(directory_to_save_desition_tree, 'decision_tree_vertical_ball.pdf')
+    with PdfPages(pdf_path_horizontal_ball) as pdf:
+        plt.figure(figsize=(12, 8))
+        plot_tree(clf_horizontal, feature_names=['V. Bala', 'D. Bala'], class_names=['C. 0 (Suelo)', 'C. 1 (Salto)'],
+                  filled=True)
+        plt.title("Árbol de Decisión - Horizontal Ball")
+        pdf.savefig()  # Guarda el gráfico en el PDF
+        plt.close()
+    with PdfPages(pdf_path_vertical_ball) as pdf:
+        plt.figure(figsize=(12, 8))
+        plot_tree(clf_vertical, feature_names=['V. Bala', 'D. Bala'], class_names=['C. 0 (Suelo)', 'C. 1 (Salto)'],
+                  filled=True)
+        plt.title("Árbol de Decisión - Vertical Ball")
+        pdf.savefig()
 
     # Guardar el modelo entrenado COMO JOBLIB en el directorio especificado
-    model_path = os.path.join(directory_to_save_desition_tree, 'decision_tree_model.joblib')
-    joblib.dump(clf, model_path)
-    print(f"Modelo de árbol de decisión guardado en: {model_path}")
+    model_path_horizontal_ball = os.path.join(directory_to_save_desition_tree, 'decision_tree_model_horizontal_ball.joblib')
+    joblib.dump(clf_horizontal, model_path_horizontal_ball)
+    model_path_vertical_ball = os.path.join(directory_to_save_desition_tree, 'decision_tree_model_vertical_ball.joblib')
+    joblib.dump(clf_vertical, model_path_vertical_ball)
+    print(f"Modelo de árbol de decisión guardado en: {model_path_horizontal_ball}")
 
 
 ### ---------------- KNN ----------------- ###
@@ -595,8 +631,8 @@ def print_menu_options():
 # Función para entrenar los modelos
 def train_models():
     #generate_neural_network()
-    #generate_desition_treee()
-    generate_knn_model()
+    generate_desition_treee()
+    #generate_knn_model()
 
 
 # Función para mostrar el menú y seleccionar el modo de juego
@@ -754,14 +790,21 @@ def run_any_mode(correr):
 
             # Modo automático: árbol de decisión
             elif modo_decision_tree:
-                if modo_decision_tree and decision_tree_trained is not None:
+                if modo_decision_tree and decision_tree_trained_horizontal_ball is not None and decision_tree_trained_vertical_ball is not None:
                     desplazamiento_bala = bala.x - jugador.x
+                    desplazamiento_bala_y = bala2.y - jugador.y
                     if predecir_salto_desition_tree(velocidad_bala, desplazamiento_bala) and en_suelo:
                         print('saltando... prediction true...')
                         salto = True
                         en_suelo = False
+                    if predecir_retroceso_desition_tree(velocidad_bala2, desplazamiento_bala_y) and en_pocision_inicial:
+                        print('retrocediendo... prediction true...')
+                        retroceso = True
+                        en_pocision_inicial = False
                 if salto:
                     manejar_salto()
+                if retroceso:
+                    manejar_retroceso()
 
             # Modo automático: KNN
             elif modo_auto and knn_model_horizontal_ball is not None and knn_model_vertical_ball is not None:
