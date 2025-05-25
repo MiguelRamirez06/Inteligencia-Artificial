@@ -23,9 +23,10 @@ modo_decision_tree = False
 
 # Variables para el modelo de red neuronal
 directory_to_save_neural_network = 'C:/Users/migue/PycharmProjects/InteligenciaArtificial/phaser/neural_network'
-neural_network_trained = None
+neural_network_trained_horizontal_ball = None
 mode_neural_network = False
-prediction_counter = 0
+prediction_counter_horizontal_ball = 0
+prediction_counter_vertical_ball = 0
 
 # Variables para el modelo KNN
 knn_model = None
@@ -121,17 +122,19 @@ fondo_x2 = w
 ### ---------------- NEURAL NETWORK ---------------- ###
 
 def cargar_modelo_neural_network():
-    global neural_network_trained
+    global neural_network_trained_horizontal_ball, neural_network_trained_vertical_ball
     try:
-        model_path = os.path.join(directory_to_save_neural_network, 'neural_network_model.keras')
-        neural_network_trained = load_model(model_path)
+        model_path_horizontal_ball = os.path.join(directory_to_save_neural_network, 'neural_network_model_horizontal_ball.keras')
+        neural_network_trained_horizontal_ball = load_model(model_path_horizontal_ball)
+        model_path_vertical_ball = os.path.join(directory_to_save_neural_network, 'neural_network_model_vertical_ball.keras')
+        neural_network_trained_vertical_ball = load_model(model_path_vertical_ball)
         print("Modelo de red neuronal cargado exitosamente.")
     except:
         print("No se pudo cargar el modelo de red neuronal")
 
 
 def predecir_salto_neural_network(velocidad_bala, desplazamiento_bala):
-    if neural_network_trained is None:
+    if neural_network_trained_horizontal_ball is None:
         print("El modelo de red neuronal no está cargado.")
         return False
 
@@ -139,7 +142,23 @@ def predecir_salto_neural_network(velocidad_bala, desplazamiento_bala):
     input_data = np.array([[velocidad_bala, desplazamiento_bala]])
 
     # Realizar la predicción
-    prediction = neural_network_trained.predict(input_data, verbose=0)
+    prediction = neural_network_trained_horizontal_ball.predict(input_data, verbose=0)
+    # prediction = neural_network_trained.predict(input_data)
+
+    # La predicción será un número entre 0 y 1
+    # Podemos establecer un umbral, por ejemplo, 0.5
+    return prediction[0][0] > 0.5
+
+def predecir_retroceso_neural_network(velocidad_bala, desplazamiento_bala):
+    if neural_network_trained_vertical_ball is None:
+        print("El modelo de red neuronal no está cargado.")
+        return False
+
+    # Preparar los datos de entrada
+    input_data = np.array([[velocidad_bala, desplazamiento_bala]])
+
+    # Realizar la predicción
+    prediction = neural_network_trained_vertical_ball.predict(input_data, verbose=0)
     # prediction = neural_network_trained.predict(input_data)
 
     # La predicción será un número entre 0 y 1
@@ -147,37 +166,51 @@ def predecir_salto_neural_network(velocidad_bala, desplazamiento_bala):
     return prediction[0][0] > 0.5
 
 def generate_neural_network():
-    global last_csv_path_saved_for_horizontal_ball, directory_to_save_neural_network
+    global last_csv_path_saved_for_horizontal_ball, directory_to_save_neural_network, last_csv_path_saved_for_vertical_ball
 
     # Cargar el dataset
-    df = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+    df_horizontal_ball = pd.read_csv(os.path.join(last_csv_path_saved_for_horizontal_ball))
+    df_vertical_ball = pd.read_csv(os.path.join(last_csv_path_saved_for_vertical_ball))
 
     # Separar características (X) y etiquetas (y)
-    X = df[['Velocidad Bala', 'Desplazamiento Bala']].values
-    y = df['Estatus Salto'].values
+    X_horizontal = df_horizontal_ball[['Velocidad Bala', 'Desplazamiento Bala']].values
+    y_horizontal = df_horizontal_ball['Estatus Salto'].values
+    X_vertical = df_vertical_ball[['Velocidad Bala', 'Desplazamiento Bala Y']].values
+    y_vertical = df_vertical_ball['Estatus Retroceso'].values
 
     # Dividir los datos en conjuntos de entrenamiento y prueba
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train_horizontal, X_test_horizontal, y_train_horizontal, y_test_horizontal = train_test_split(X_horizontal, y_horizontal, test_size=0.2, random_state=42)
+    X_train_vertical, X_test_vertical, y_train_vertical, y_test_vertical = train_test_split(X_vertical, y_vertical, test_size=0.2, random_state=42)
 
     # Crear el modelo de red neuronal
-    model = Sequential([
+    model_horizontal_ball = Sequential([
+        Dense(8, input_dim=2, activation='relu'),
+        Dense(4, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    model_vertical_ball = Sequential([
         Dense(8, input_dim=2, activation='relu'),
         Dense(4, activation='relu'),
         Dense(1, activation='sigmoid')
     ])
 
     # Compilar el modelo
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model_horizontal_ball.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model_vertical_ball.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
     # Entrenar el modelo
-    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
+    model_horizontal_ball.fit(X_train_horizontal, y_train_horizontal, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
+    model_vertical_ball.fit(X_train_vertical, y_train_vertical, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
 
     # Evaluar el modelo
-    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
-    print(f"\nPrecisión en el conjunto de prueba: {accuracy:.2f}")
+    loss_horizontal, accuracy_horizontal = model_horizontal_ball.evaluate(X_test_horizontal, y_test_horizontal, verbose=0)
+    loss_vertical, accuracy_vertical = model_vertical_ball.evaluate(X_test_vertical, y_test_vertical, verbose=0)
+    print(f"\nPrecisión en el conjunto de prueba bala 1: {accuracy_horizontal:.2f}")
+    print(f"Precisión en el conjunto de prueba bala 2: {accuracy_vertical:.2f}")
 
     # Guardar el modelo
-    save_model(model, os.path.join(directory_to_save_neural_network, 'neural_network_model.keras'))
+    save_model(model_horizontal_ball, os.path.join(directory_to_save_neural_network, 'neural_network_model_horizontal_ball.keras'))
+    save_model(model_vertical_ball, os.path.join(directory_to_save_neural_network, 'neural_network_model_vertical_ball.keras'))
 
     print("Modelo de red neuronal generado y guardado exitosamente.")
 
@@ -630,8 +663,8 @@ def print_menu_options():
 
 # Función para entrenar los modelos
 def train_models():
-    #generate_neural_network()
-    generate_desition_treee()
+    generate_neural_network()
+    #generate_desition_treee()
     #generate_knn_model()
 
 
@@ -739,7 +772,7 @@ def reiniciar_juego():
 def run_any_mode(correr):
     global salto, en_suelo, bala_disparada, bala2_disparada
     global modo_decision_tree, modo_manual, modo_auto, modo_2_balas
-    global bala, velocidad_bala, jugador, prediction_counter, velocidad_bala2, bala2
+    global bala, velocidad_bala, jugador, prediction_counter_horizontal_ball, prediction_counter_vertical_ball, velocidad_bala2, bala2
     global retroceso, regreso, en_pocision_inicial
 
     pygame.display.flip()
@@ -778,15 +811,21 @@ def run_any_mode(correr):
             # Modo automático: neural network
             elif mode_neural_network:
                 # This module oprand has used to minimize the calls to the neural network for predictions
-                prediction_counter += 1
-                if prediction_counter % 1 == 0:
-                    if mode_neural_network and neural_network_trained is not None:
+                prediction_counter_horizontal_ball += 1
+                prediction_counter_vertical_ball += 1
+                if prediction_counter_horizontal_ball % 1 == 0 and prediction_counter_vertical_ball % 1 == 0:
+                    if mode_neural_network and neural_network_trained_horizontal_ball is not None:
                         desplazamiento_bala = bala.x - jugador.x
                         if predecir_salto_neural_network(velocidad_bala, desplazamiento_bala) and en_suelo:
                             salto = True
                             en_suelo = False
+                        if predecir_retroceso_neural_network(velocidad_bala2, bala2.y - jugador.y) and en_pocision_inicial:
+                            retroceso = True
+                            en_pocision_inicial = False
                     if salto:
                         manejar_salto()
+                    if retroceso:
+                        manejar_retroceso()
 
             # Modo automático: árbol de decisión
             elif modo_decision_tree:
