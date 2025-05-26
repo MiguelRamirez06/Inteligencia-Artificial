@@ -31,7 +31,7 @@ y_predict = clf.predict(X_test)
 print(X_test, y_predict)
 
 # Visualizar el árbol usando matplotlib y plot_tree
-plt.figure(figsize=(12, 8))
+plt.figure(figsize=(20, 10))
 plot_tree(clf,
           feature_names=['Feature 1', 'Feature 2'],
           class_names=['Clase 0', 'Clase 1'],

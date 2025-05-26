@@ -403,7 +403,7 @@ def generate_knn_model():
 def disparar_bala():
     global bala_disparada, velocidad_bala
     if not bala_disparada:
-        velocidad_bala = random.randint(-12, -7)  # Velocidad aleatoria negativa para la bala
+        velocidad_bala = random.randint(-7, -3)  # Velocidad aleatoria negativa para la bala
         bala_disparada = True
 
 # Función para reiniciar la posición de la bala
@@ -504,9 +504,9 @@ def update():
     pantalla.blit(bala_img, (bala.x, bala.y))
 
     # Colisión entre la bala y el jugador
-    #if jugador.colliderect(bala):
-        #print("Colisión detectada!")
-        #reiniciar_juego()  # Terminar el juego y mostrar el menú
+    if jugador.colliderect(bala):
+        print("Colisión detectada!")
+        reiniciar_juego()  # Terminar el juego y mostrar el menú
 
     # Mover y dibujar la segunda bala si está en modo 2 balas
     if modo_2_balas:
@@ -522,9 +522,9 @@ def update():
         pantalla.blit(bala_img, (bala2.x, bala2.y))
 
         # Colisión entre la bala2 y el jugador
-        #if jugador.colliderect(bala2):
-            #print("Colisión con bala 2 detectada!")
-            #reiniciar_juego()
+        if jugador.colliderect(bala2):
+            print("Colisión con bala 2 detectada!")
+            reiniciar_juego()
 
 # Función para guardar datos del modelo en modo manual
 def guardar_datos():
@@ -663,8 +663,8 @@ def print_menu_options():
 
 # Función para entrenar los modelos
 def train_models():
-    generate_neural_network()
-    #generate_desition_treee()
+    #generate_neural_network()
+    generate_desition_treee()
     #generate_knn_model()
 
 
